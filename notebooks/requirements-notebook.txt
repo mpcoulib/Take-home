@@ -1,0 +1,4 @@
+# Notebook-only extras (on top of backend/requirements.txt)
+jupyterlab==4.3.4
+matplotlib==3.10.0
+seaborn==0.13.2
