@@ -20,6 +20,7 @@ interface PatientResultsViewProps {
   insuranceId: string;
   location: string;
   onReset: () => void;
+  onSelectHospital: (hospital: RankedHospital, conditionDisplay: string) => void;
 }
 
 type LoadState =
@@ -27,7 +28,7 @@ type LoadState =
   | { status: "error"; message: string }
   | { status: "ready"; conditionDisplay: string; hospitals: RankedHospital[] };
 
-export function PatientResultsView({ complaints, insuranceId, location, onReset }: PatientResultsViewProps) {
+export function PatientResultsView({ complaints, insuranceId, location, onReset, onSelectHospital }: PatientResultsViewProps) {
   const condition = inferCondition(complaints);
   const insuranceName = INSURANCE_OPTIONS.find((i) => i.id === insuranceId)?.name ?? "Your insurance";
   const [state, setState] = useState<LoadState>({ status: "loading" });
@@ -185,7 +186,14 @@ export function PatientResultsView({ complaints, insuranceId, location, onReset 
 
       <div className="space-y-5">
         {hospitals.map((hospital, i) => (
-          <HospitalCard key={hospital.facility_id} hospital={hospital} condition={conditionDisplay} isTop={i === 0} delay={i * 0.08} />
+          <button
+            key={hospital.facility_id}
+            type="button"
+            onClick={() => onSelectHospital(hospital, conditionDisplay)}
+            className="w-full text-left block rounded-2xl transition-transform hover:scale-[1.005] hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            <HospitalCard hospital={hospital} condition={conditionDisplay} isTop={i === 0} delay={i * 0.08} />
+          </button>
         ))}
       </div>
 

@@ -214,6 +214,20 @@ export default function App() {
         <AnimatePresence mode="wait">
           {isLoading ? (
             <LoadingState key="loading" location={location} />
+          ) : step === "detail" && selectedHospital ? (
+            <motion.div
+              key="detail"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.35 }}
+            >
+              <HospitalDetailView
+                hospital={selectedHospital}
+                conditionDisplay={conditionDisplay}
+                onBack={() => setStep("results")}
+              />
+            </motion.div>
           ) : step === "results" && insuranceId ? (
             <motion.div
               key="results"
@@ -227,6 +241,7 @@ export default function App() {
                 insuranceId={insuranceId}
                 location={location}
                 onReset={handleReset}
+                onSelectHospital={handleSelectHospital}
               />
             </motion.div>
           ) : (
