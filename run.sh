@@ -23,7 +23,7 @@ pip install -q --upgrade pip
 pip install -q -r backend/requirements.txt
 
 # Active dataset: first arg, or DATASET env, or first file in ./data
-export DATASET="${1:-${DATASET:-}}"
+export DATASET="${1:-${DATASET:-cms:xubh-q36u}}"
 PORT="${PORT:-8000}"
 echo "Starting on http://127.0.0.1:${PORT}  (dataset: ${DATASET:-auto})"
-exec uvicorn app.main:app --app-dir backend --reload --host 127.0.0.1 --port "$PORT"
+exec uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port "$PORT"
