@@ -41,18 +41,28 @@ def _cached_directory() -> pd.DataFrame:
     return _load_general_info(refresh=False)
 
 
+# In-process cache of the directory pulled from Supabase (the lru_cache above
+# only covers the local-parquet path). Without it every search/rank refetched
+# the full facility table over the network.
+_SUPABASE_DIR_CACHE: pd.DataFrame | None = None
+
+
 def load(refresh: bool = False) -> pd.DataFrame:
+    global _SUPABASE_DIR_CACHE
     from . import supabase_store
 
     if refresh:
         _cached_directory.cache_clear()
+        _SUPABASE_DIR_CACHE = None
         df = _load_general_info(refresh=True)
         if supabase_store.is_configured():
             supabase_store.upsert_facilities(df)
         return df
 
     if supabase_store.is_configured():
-        return supabase_store.load_directory()
+        if _SUPABASE_DIR_CACHE is None:
+            _SUPABASE_DIR_CACHE = supabase_store.load_directory()
+        return _SUPABASE_DIR_CACHE
 
     return _cached_directory()
 
@@ -84,4 +94,6 @@ def search(q: str = "", state: str = "", limit: int = 50) -> list[dict]:
 
 
 def clear_cache() -> None:
+    global _SUPABASE_DIR_CACHE
     _cached_directory.cache_clear()
+    _SUPABASE_DIR_CACHE = None

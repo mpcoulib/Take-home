@@ -230,23 +230,42 @@ def store_info() -> dict:
     return {"store": str(STORE_PATH.name), "modified": meta.get("modified"), "exists": STORE_PATH.exists()}
 
 
+# In-process cache: the measures store is large (≈800k rows) and immutable
+# between refreshes. Without this, every /api/rank call re-pulled the full table
+# from Supabase (and ran a 5-call CMS stale-check) — ~25s per request. Cached,
+# the first request warms it and the rest are instant.
+_MEASURES_CACHE: pd.DataFrame | None = None
+
+
+def clear_cache() -> None:
+    global _MEASURES_CACHE
+    _MEASURES_CACHE = None
+
+
 def load(force_refresh: bool = False) -> pd.DataFrame:
-    """Return the measures store, building/refreshing when stale."""
+    """Return the measures store, building/refreshing when stale. Cached in-process."""
+    global _MEASURES_CACHE
     from . import supabase_store
 
-    if force_refresh or is_stale():
+    if not force_refresh and _MEASURES_CACHE is not None:
+        return _MEASURES_CACHE
+
+    if force_refresh or _MEASURES_CACHE is None and is_stale():
         from . import directory
 
         df, modified = build(refresh=force_refresh)
         if supabase_store.is_configured():
             dir_df = directory.load(refresh=force_refresh)
             supabase_store.sync_from_frames(df, dir_df, modified=modified)
+        _MEASURES_CACHE = df
         return df
 
     if supabase_store.is_configured():
-        return supabase_store.load_measures()
+        _MEASURES_CACHE = supabase_store.load_measures()
+        return _MEASURES_CACHE
 
-    return pd.read_parquet(STORE_PATH)
+    _MEASURES_CACHE = pd.read_parquet(STORE_PATH)
+    return _MEASURES_CACHE
 
 
 def measures_for_facility(facility_id: str, df: pd.DataFrame | None = None) -> list[dict]:
