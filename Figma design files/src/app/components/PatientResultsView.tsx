@@ -190,7 +190,7 @@ export function PatientResultsView({ complaints, insuranceId, location, onReset,
             key={hospital.facility_id}
             type="button"
             onClick={() => onSelectHospital(hospital, conditionDisplay)}
-            className="w-full text-left block rounded-2xl transition-transform hover:scale-[1.005] hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="group w-full text-left block rounded-2xl transition-transform hover:scale-[1.005] hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             <HospitalCard hospital={hospital} condition={conditionDisplay} isTop={i === 0} delay={i * 0.08} />
           </button>

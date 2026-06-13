@@ -1,216 +1,53 @@
-# Hospital Quality Matcher
+# HospitalMatch
 
-A CMS hospital data API that ranks hospitals by patient condition, surfaces
-per-measure national context, and generates grounded plain-language explanations.
+A patient facing tool that ranks hospitals by real CMS quality outcomes for a chosen condition. Describe symptoms, give insurance and location, get hospitals ranked on actual Medicare outcome measures with a plain explanation of why.
 
-Built on real CMS Provider-Data files (complications, readmissions, HCAHPS, etc.)
-with a unified measures store, footnote decoding, and a knowledge graph for
-visualization.
+Dataset: CMS Provider Data Catalog, Hospital General Information (xubh-q36u) plus five sibling measure files (Complications and Deaths, Unplanned Hospital Visits, Timely and Effective Care, Healthcare Associated Infections, HCAHPS), joined on Facility ID into one store of about 800k measure rows across 5,432 hospitals.
 
-## Setup & run
+## Stack
 
-Requires Python 3.10+.
+Backend: FastAPI plus pandas. Condition to measure mapping, percentile based scoring, a NetworkX knowledge graph (Condition to Measure to Hospital), Claude explanations with a deterministic template fallback.
+Frontend: React plus Vite plus Tailwind, built into frontend/ and served by the backend.
+Data: pulled live from the CMS API and cached. Optional Supabase backend if env vars are set, otherwise a local parquet cache.
 
-```bash
-# Start server (creates venv, installs deps, serves on :8000)
-./run.sh
-```
+## Run
 
-Open http://127.0.0.1:8000. (Port busy? `PORT=8077 ./run.sh`.)
+Requires Python 3.11+ and Node 18+.
 
-### Manual run
+    ./run.sh
 
-```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r backend/requirements.txt
-uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000
-```
+Opens http://127.0.0.1:8000. Port busy: PORT=8077 ./run.sh
 
-### Environment variables
+First boot pulls the CMS files and builds the store (about 30s, warmed in the background on startup). After that ranking is sub second. In the app: enter symptoms, pick insurance, enter location as City, ST (for example Boston, MA), see ranked hospitals.
 
-| Variable | Required | Purpose |
-|----------|----------|---------|
-| `ANTHROPIC_API_KEY` | No | Enables Claude explanations on `/api/rank`. Without it, deterministic template text is used. |
-| `DATASET` | No | Default dataset for generic explorer routes |
-| `PORT` | No | Server port (default 8000) |
+### LLM explanations (optional)
 
-**Running without an API key:** The grader and all tests pass with zero setup. Rank
-responses include `explanation` and `explanation_source: "template"` using only
-real joined CMS numbers.
+Without a key the app uses deterministic template explanations, so it runs with zero setup. For Claude generated explanations:
 
-**Running with LLM explanations:**
+    export ANTHROPIC_API_KEY=sk-ant-...
+    ./run.sh
 
-```bash
-export ANTHROPIC_API_KEY=sk-ant-...
-uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000
-```
+### Frontend dev
 
-Check availability: `GET /api/health` → `"llm_available": true`.
+    cd "Figma design files" && npm install && npm run dev
 
-### Refresh CMS data
+## API
 
-```bash
-curl -X POST http://127.0.0.1:8000/api/data/refresh
-```
-
-Downloads CMS sources and rebuilds `data/measures_store.parquet`.
-
-## API overview
-
-| Method | Path | Purpose |
-|--------|------|---------|
-| GET | `/api/health` | Liveness, default source, `llm_available` |
-| GET | `/api/conditions` | Patient conditions and mapped CMS measures |
-| GET | `/api/hospitals/search?q=&state=` | Hospital directory search |
-| GET | `/api/hospitals/{facility_id}` | Hospital detail + measures |
-| POST | `/api/rank` | Rank hospitals for a condition (with explanations) |
-| GET | `/api/graph/{condition}` | Knowledge-graph subgraph JSON |
-| POST | `/api/data/refresh` | Re-fetch CMS and rebuild parquet store |
-| GET | `/api/footnotes` | CMS footnote crosswalk |
-
-### Rank example
-
-```bash
-curl -s -X POST http://127.0.0.1:8000/api/rank \
-  -H 'Content-Type: application/json' \
-  -d '{"condition":"knee_surgery","facility_ids":["010001","010005"]}' | jq .
-```
-
-Each hospital in `rankings[]` includes:
-
-- `score`, `coverage`, `rank`, `measures[]` — Phase 2 ranking
-- `explanation` — 2-sentence summary (LLM or template)
-- `explanation_source` — `"llm"` or `"template"`
-
-## Tests
-
-```bash
-source .venv/bin/activate
-pip install -r backend/requirements.txt
-cd backend && python -m pytest tests/ -v
-```
-
-Grounding verification (GATE 3):
-
-```bash
-python backend/verify_grounding.py --text "..." --payload payload.json
-```
+GET  /api/health                       liveness, llm_available, data backend
+GET  /api/conditions                   conditions and their mapped measures
+GET  /api/hospitals/search?q=&state=   hospital lookup
+GET  /api/hospitals/{facility_id}      one hospital plus its measures
+POST /api/rank                         body {condition, facility_ids[]}, ranked hospitals with national comparison and explanation
+GET  /api/graph/{condition}            the knowledge graph for a condition
 
 ## Layout
 
-```
-backend/app/
-  cms_measures.py   # unified measures parquet store
-  directory.py      # hospital directory
-  graph.py          # knowledge graph
-  ranking.py        # direction-aware weighted ranking
-  explain.py        # grounded LLM + template fallback
-  measures.py       # condition → measure mappings
-  EXPLAIN_SPEC.md   # Phase 3 explanation contract
-  RANKING_SPEC.md   # Phase 2 ranking contract
-  SCHEMA.md         # Phase 1 data contract
-backend/verify_grounding.py  # orphan-number judge
-backend/tests/
-frontend/
-data/               # CMS CSVs + measures_store.parquet (local dev)
-supabase/migrations/  # Postgres schema for production
-scripts/sync_to_supabase.py
-api/index.py        # Vercel serverless entry
-vercel.json
-requirements.txt    # Vercel Python deps
-run.sh / pack.sh
-README.md / WRITEUP.md
-```
+    backend/app/         FastAPI app, scoring, graph, CMS join, explanations
+    backend/tests/       ranking and grounding tests (pytest)
+    frontend/            built React app (served by backend)
+    Figma design files/  React source
+    run.sh               setup and run
 
-## Packaging for submission
+## Tests
 
-```bash
-./pack.sh   # writes submission.tar.gz (<100MB), excludes venv/full data blobs
-```
-
-Includes `data/sample.csv` only; full CMS files are fetched via `/api/data/refresh`.
-
-## Production: Supabase + Vercel
-
-Local dev still works with zero cloud setup (parquet + CSV in `data/`). For
-production on Vercel, use Supabase Postgres as the data store — serverless
-functions cannot rely on a large local parquet cache.
-
-### 1. Supabase database
-
-1. Create a project at [supabase.com](https://supabase.com).
-2. Install the CLI (optional but recommended):
-
-   ```bash
-   brew install supabase/tap/supabase
-   supabase login
-   supabase link --project-ref YOUR_PROJECT_REF
-   supabase db push
-   ```
-
-   Or paste `supabase/migrations/20250612120000_initial_schema.sql` into the
-   Supabase SQL editor and run it.
-
-3. Copy connection details from **Project Settings → Database**:
-   - **Project URL** → `SUPABASE_URL` (e.g. `https://YOUR_REF.supabase.co`)
-   - **Connection string (URI)** → `DATABASE_URL` (use Transaction pooler, port 6543)
-
-4. Populate from your local parquet cache:
-
-   ```bash
-   cp .env.example .env   # fill in DATABASE_URL
-   source .venv/bin/activate
-   pip install -r backend/requirements.txt
-   python scripts/sync_to_supabase.py
-   ```
-
-   Re-fetch CMS and sync: `python scripts/sync_to_supabase.py --refresh`
-
-**Schema** (`supabase/migrations/`):
-
-| Table | Grain | Purpose |
-|-------|-------|---------|
-| `facilities` | `facility_id` | Hospital directory |
-| `facility_measures` | `(facility_id, measure_id)` | Unified measures store |
-| `store_meta` | `key` | CMS `modified` timestamps |
-
-RLS allows public read; writes use `DATABASE_URL` (service role / direct Postgres).
-
-### 2. Vercel deployment
-
-Vercel CLI is used to deploy the FastAPI app + static frontend (`api/index.py`
-rewrites all routes to the backend; `frontend/` is served by FastAPI).
-
-```bash
-vercel link          # first time: link to a new or existing project
-vercel env add DATABASE_URL production
-vercel env add ANTHROPIC_API_KEY production   # optional, for LLM explanations
-vercel deploy --prod
-```
-
-`.vercelignore` excludes large `data/*.csv` and parquet from deploy bundles — production
-must use Supabase (`DATABASE_URL`).
-
-Required Vercel environment variables:
-
-| Variable | Required | Purpose |
-|----------|----------|---------|
-| `DATABASE_URL` | Yes (prod) | Supabase Postgres connection string |
-| `ANTHROPIC_API_KEY` | No | LLM explanations on `/api/rank` |
-| `SUPABASE_URL` | No | Reference / future client use |
-
-After deploy, check `GET /api/health` → `"data_backend": "supabase"`.
-
-### Environment variables (full list)
-
-| Variable | Required | Purpose |
-|----------|----------|---------|
-| `ANTHROPIC_API_KEY` | No | Enables Claude explanations on `/api/rank`. Without it, deterministic template text is used. |
-| `DATASET` | No | Default dataset for generic explorer routes |
-| `PORT` | No | Server port (default 8000) |
-| `DATABASE_URL` | No (prod yes) | Supabase Postgres URI; when set, API reads from Supabase instead of parquet |
-| `SUPABASE_URL` | No | Supabase project URL |
-| `SUPABASE_ANON_KEY` | No | Anon key for future client-side reads |
-| `SUPABASE_SERVICE_ROLE_KEY` | No | Server-only admin key (prefer `DATABASE_URL` for sync) |
-
-See `.env.example` for a template. Never commit `.env` or API keys.
+    source .venv/bin/activate && python -m pytest backend/tests -q

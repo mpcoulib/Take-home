@@ -69,7 +69,7 @@ export function HospitalCard({ hospital, condition, isTop, delay }: HospitalCard
             <div>
               <h3
                 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700 }}
-                className="text-foreground text-lg leading-tight mb-0.5"
+                className="text-foreground text-lg leading-tight mb-0.5 group-hover:text-[#0ea5b0] group-hover:underline decoration-[#0ea5b0] underline-offset-2 transition-colors"
               >
                 {hospital.name}
               </h3>
