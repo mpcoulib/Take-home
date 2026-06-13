@@ -54,7 +54,7 @@ export function LocationSelector({ value, onChange, insuranceName }: LocationSel
         </div>
         <h2
           style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700 }}
-          className="text-3xl text-foreground mb-2"
+          className="text-2xl sm:text-3xl text-foreground mb-2"
         >
           Where are you located?
         </h2>

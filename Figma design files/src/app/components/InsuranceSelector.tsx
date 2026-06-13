@@ -39,7 +39,7 @@ export function InsuranceSelector({ selected, onSelect, complaintsPreview }: Ins
         </div>
         <h2
           style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700 }}
-          className="text-3xl text-foreground mb-2"
+          className="text-2xl sm:text-3xl text-foreground mb-2"
         >
           What insurance do you have?
         </h2>

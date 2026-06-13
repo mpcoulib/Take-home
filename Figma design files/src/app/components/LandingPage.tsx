@@ -46,7 +46,7 @@ export function LandingPage({ onStart }: LandingPageProps) {
 
         <h1
           style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800 }}
-          className="text-4xl sm:text-5xl lg:text-6xl text-foreground leading-tight mb-6"
+          className="text-2xl sm:text-3xl sm:text-4xl sm:text-5xl lg:text-6xl text-foreground leading-tight mb-6"
         >
           Find the right hospital{" "}
           <span style={{ color: "#0ea5b0" }}>for you</span>

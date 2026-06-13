@@ -59,17 +59,17 @@ export function HospitalCard({ hospital, condition, isTop, delay }: HospitalCard
 
       <div className="p-6">
         <div className="flex items-start justify-between mb-5">
-          <div className="flex items-start gap-4">
+          <div className="flex items-start gap-4 min-w-0">
             <div
               className="w-12 h-12 rounded-xl flex items-center justify-center text-white flex-shrink-0"
               style={{ backgroundColor: rankColor, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: "1.25rem" }}
             >
               #{hospital.rank}
             </div>
-            <div>
+            <div className="min-w-0">
               <h3
                 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700 }}
-                className="text-foreground text-lg leading-tight mb-0.5 group-hover:text-[#0ea5b0] group-hover:underline decoration-[#0ea5b0] underline-offset-2 transition-colors"
+                className="text-foreground text-lg leading-tight mb-0.5 break-words group-hover:text-[#0ea5b0] group-hover:underline decoration-[#0ea5b0] underline-offset-2 transition-colors"
               >
                 {hospital.name}
               </h3>

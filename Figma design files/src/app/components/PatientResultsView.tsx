@@ -148,7 +148,7 @@ export function PatientResultsView({ complaints, insuranceId, location, onReset,
           </span>
         </div>
 
-        <h2 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800 }} className="text-3xl text-foreground mb-2">
+        <h2 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800 }} className="text-2xl sm:text-3xl text-foreground mb-2">
           Hospitals ranked for {conditionDisplay.toLowerCase()}
         </h2>
         <p style={{ fontFamily: "'Inter', sans-serif" }} className="text-muted-foreground text-lg">
