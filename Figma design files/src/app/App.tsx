@@ -90,11 +90,8 @@ export default function App() {
     } else if (step === "insurance") {
       setStep("location");
     } else if (step === "location") {
-      setIsLoading(true);
-      setTimeout(() => {
-        setIsLoading(false);
-        setStep("results");
-      }, 2200);
+      // PatientResultsView fetches + ranks real CMS data and owns its loading UI.
+      setStep("results");
     }
   };
 

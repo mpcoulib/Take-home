@@ -21,6 +21,14 @@ export default defineConfig({
     outDir: path.resolve(__dirname, '../frontend'),
     emptyOutDir: true,
   },
+  // Dev only: proxy API calls to the FastAPI backend (port 8077). In the
+  // production build the backend serves these assets itself, so same-origin
+  // relative /api/* paths work without a proxy.
+  server: {
+    proxy: {
+      '/api': 'http://127.0.0.1:8077',
+    },
+  },
   plugins: [
     figmaAssetResolver(),
     // The React and Tailwind plugins are both required for Make, even if

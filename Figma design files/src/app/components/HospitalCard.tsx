@@ -1,33 +1,43 @@
 import { motion } from "motion/react";
-import { Award, Users, Star, TrendingDown } from "lucide-react";
+import { Award, AlertCircle } from "lucide-react";
 import { MetricBar } from "./MetricBar";
-
-export interface HospitalData {
-  name: string;
-  location: string;
-  rank: number;
-  overallScore: number;
-  readmissionRate: number;
-  mortalityRate: number;
-  annualVolume: number;
-  patientSatisfaction: number;
-  aiReasoning: string;
-  highlights: string[];
-}
+import type { RankedHospital } from "../api";
 
 interface HospitalCardProps {
-  hospital: HospitalData;
+  hospital: RankedHospital;
   condition: string;
   isTop: boolean;
   delay: number;
 }
 
 const RANK_COLORS = ["#0ea5b0", "#1e40af", "#5a6a82"];
-const RANK_LABELS = ["Best match", "Strong option", "Consider"];
+
+// CMS comparison enum → human badge.
+const VS_LABEL: Record<string, { label: string; color: string; bg: string }> = {
+  better: { label: "Better than national", color: "#16a34a", bg: "#dcfce7" },
+  worse: { label: "Worse than national", color: "#d97706", bg: "#fef3c7" },
+  no_different: { label: "Same as national", color: "#5a6a82", bg: "#e8edf5" },
+};
+
+function exclusionLabel(reason: string | null, footnote: string): string {
+  if (footnote) return footnote;
+  switch (reason) {
+    case "not_available":
+      return "Not publicly reported";
+    case "too_few_cases":
+      return "Too few cases to report";
+    case "no_national_data":
+      return "No national benchmark";
+    case "no_score":
+    default:
+      return "No data available";
+  }
+}
 
 export function HospitalCard({ hospital, condition, isTop, delay }: HospitalCardProps) {
   const rankColor = RANK_COLORS[Math.min(hospital.rank - 1, 2)];
-  const rankLabel = RANK_LABELS[Math.min(hospital.rank - 1, 2)];
+  const included = hospital.measures.filter((m) => m.included && m.raw_score !== null);
+  const excluded = hospital.measures.filter((m) => !m.included);
 
   return (
     <motion.div
@@ -39,10 +49,7 @@ export function HospitalCard({ hospital, condition, isTop, delay }: HospitalCard
       }`}
     >
       {isTop && (
-        <div
-          className="px-5 py-2 flex items-center gap-2"
-          style={{ backgroundColor: "#0ea5b0" }}
-        >
+        <div className="px-5 py-2 flex items-center gap-2" style={{ backgroundColor: "#0ea5b0" }}>
           <Award className="w-4 h-4 text-white" />
           <span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700 }} className="text-white text-sm">
             Top Recommendation for {condition}
@@ -67,7 +74,7 @@ export function HospitalCard({ hospital, condition, isTop, delay }: HospitalCard
                 {hospital.name}
               </h3>
               <p style={{ fontFamily: "'Inter', sans-serif" }} className="text-muted-foreground text-sm">
-                {hospital.location}
+                Facility ID {hospital.facility_id}
               </p>
             </div>
           </div>
@@ -76,90 +83,96 @@ export function HospitalCard({ hospital, condition, isTop, delay }: HospitalCard
               style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, color: rankColor }}
               className="text-2xl"
             >
-              {hospital.overallScore}
+              {hospital.score !== null ? hospital.score : "—"}
             </div>
             <div style={{ fontFamily: "'Inter', sans-serif" }} className="text-xs text-muted-foreground">
-              Quality score
+              {hospital.score !== null ? "Quality score" : "Not rated"}
             </div>
           </div>
         </div>
 
+        {/* Coverage / data-completeness badges */}
         <div className="flex flex-wrap gap-2 mb-5">
-          {hospital.highlights.map((h) => (
+          <span
+            className="text-xs px-2.5 py-1 rounded-full border border-border"
+            style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500, color: "#5a6a82" }}
+          >
+            {included.length} of {hospital.measures.length} measures with data
+          </span>
+          {hospital.low_coverage && (
             <span
-              key={h}
-              className="text-xs px-2.5 py-1 rounded-full border border-border"
-              style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500, color: "#5a6a82" }}
+              className="text-xs px-2.5 py-1 rounded-full inline-flex items-center gap-1"
+              style={{ fontFamily: "'Inter', sans-serif", fontWeight: 600, color: "#d97706", backgroundColor: "#fef3c7" }}
             >
-              {h}
+              <AlertCircle className="w-3 h-3" /> Limited data
             </span>
-          ))}
+          )}
         </div>
 
-        <div className="grid grid-cols-3 gap-3 mb-6 p-4 rounded-xl bg-muted/40">
-          <div className="text-center">
-            <TrendingDown className="w-4 h-4 text-accent mx-auto mb-1" />
-            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }} className="text-foreground text-sm">
-              {hospital.readmissionRate}%
-            </div>
-            <div style={{ fontFamily: "'Inter', sans-serif" }} className="text-xs text-muted-foreground mt-0.5">
-              Readmission
-            </div>
+        {/* Real CMS measures for this condition */}
+        {included.length > 0 ? (
+          <div className="space-y-4 mb-6">
+            {included.map((m) => {
+              const vs = m.vs_national ? VS_LABEL[m.vs_national] : undefined;
+              return (
+                <div key={m.id}>
+                  <MetricBar
+                    label={m.label}
+                    value={m.raw_score as number}
+                    benchmark={m.national_median ?? (m.raw_score as number)}
+                    unit=""
+                    lowerIsBetter={m.direction === "lower"}
+                    tooltip={`CMS measure ${m.id}`}
+                  />
+                  {vs && (
+                    <span
+                      className="inline-block mt-1 text-xs px-2 py-0.5 rounded-full"
+                      style={{ color: vs.color, backgroundColor: vs.bg, fontFamily: "'Inter', sans-serif", fontWeight: 600 }}
+                    >
+                      {vs.label}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
-          <div className="text-center border-x border-border">
-            <Users className="w-4 h-4 text-accent mx-auto mb-1" />
-            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }} className="text-foreground text-sm">
-              {hospital.annualVolume.toLocaleString()}
-            </div>
-            <div style={{ fontFamily: "'Inter', sans-serif" }} className="text-xs text-muted-foreground mt-0.5">
-              Annual cases
-            </div>
+        ) : (
+          <div className="mb-6 p-4 rounded-xl bg-muted/40 text-sm text-muted-foreground" style={{ fontFamily: "'Inter', sans-serif" }}>
+            No publicly reported {condition.toLowerCase()} measures for this hospital.
           </div>
-          <div className="text-center">
-            <Star className="w-4 h-4 text-accent mx-auto mb-1" />
-            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }} className="text-foreground text-sm">
-              {hospital.patientSatisfaction}%
-            </div>
-            <div style={{ fontFamily: "'Inter', sans-serif" }} className="text-xs text-muted-foreground mt-0.5">
-              Satisfied
-            </div>
-          </div>
-        </div>
+        )}
 
-        <div className="space-y-4 mb-6">
-          <MetricBar
-            label="Readmission Rate"
-            value={hospital.readmissionRate}
-            benchmark={14.6}
-            unit="%"
-            lowerIsBetter
-            tooltip="Lower readmission rates indicate better initial care and discharge planning"
-          />
-          <MetricBar
-            label="Mortality Rate"
-            value={hospital.mortalityRate}
-            benchmark={12.4}
-            unit="%"
-            lowerIsBetter
-            tooltip="Adjusted for patient risk factors"
-          />
-          <MetricBar
-            label="Patient Satisfaction"
-            value={hospital.patientSatisfaction}
-            benchmark={71}
-            unit="%"
-          />
-        </div>
+        {/* Excluded measures — show WHY (decoded CMS footnote) */}
+        {excluded.length > 0 && (
+          <div className="mb-6">
+            <p
+              style={{ fontFamily: "'Inter', sans-serif", fontWeight: 600 }}
+              className="text-xs text-muted-foreground mb-2 uppercase tracking-wide"
+            >
+              Data unavailable
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {excluded.map((m) => (
+                <span
+                  key={m.id}
+                  className="text-xs px-2.5 py-1 rounded-full border border-border"
+                  style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500, color: "#5a6a82" }}
+                  title={exclusionLabel(m.exclusion_reason, m.footnote)}
+                >
+                  {m.label}: {exclusionLabel(m.exclusion_reason, m.footnote)}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
-        <div
-          className="rounded-xl p-4"
-          style={{ backgroundColor: "#0d1b2e08", borderLeft: "3px solid #0ea5b0" }}
-        >
+        {/* Grounded explanation */}
+        <div className="rounded-xl p-4" style={{ backgroundColor: "#0d1b2e08", borderLeft: "3px solid #0ea5b0" }}>
           <p style={{ fontFamily: "'Inter', sans-serif" }} className="text-xs text-muted-foreground mb-2 uppercase tracking-wide font-semibold">
-            AI Analysis · Powered by Claude
+            {hospital.explanation_source === "llm" ? "AI Analysis · Powered by Claude" : "Summary"}
           </p>
           <p style={{ fontFamily: "'Inter', sans-serif" }} className="text-sm text-foreground leading-relaxed">
-            {hospital.aiReasoning}
+            {hospital.explanation}
           </p>
         </div>
       </div>
