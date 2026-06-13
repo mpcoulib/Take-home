@@ -33,6 +33,22 @@ DEFAULT_SOURCE = os.environ.get("DATASET", "")
 FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
 
 
+@app.on_event("startup")
+def _warm_caches() -> None:
+    """Pre-load the measures store + directory in a background thread so the
+    first /api/rank request doesn't pay the one-time Supabase pull (~30s)."""
+    import threading
+
+    def _warm():
+        try:
+            cms_measures.load()
+            directory.load()
+        except Exception:  # noqa: BLE001 — warming is best-effort
+            pass
+
+    threading.Thread(target=_warm, daemon=True).start()
+
+
 def get_df(source: str | None):
     src = source or DEFAULT_SOURCE
     if not src:

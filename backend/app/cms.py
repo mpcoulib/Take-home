@@ -52,8 +52,11 @@ def _slug(title: str, dataset_id: str) -> str:
     return s or dataset_id
 
 
-def fetch(dataset_id: str, data_dir: Path, refresh: bool = False) -> tuple[Path, DatasetRef]:
+def fetch(dataset_id: str, data_dir: Path | None = None, refresh: bool = False) -> tuple[Path, DatasetRef]:
     """Download the dataset CSV into ``data_dir`` (cached) and return its path + ref."""
+    from .runtime import cache_dir
+
+    data_dir = data_dir or cache_dir()
     ref = resolve(dataset_id)
     if not ref.download_url:
         raise ValueError(f"No CSV distribution for dataset '{dataset_id}'")

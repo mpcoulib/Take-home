@@ -57,7 +57,9 @@ def load(source: str) -> pd.DataFrame:
     """
     if source.startswith("cms:"):
         from . import cms
-        path, _ref = cms.fetch(source[4:], DATA_DIR)
+        from .runtime import cache_dir
+
+        path, _ref = cms.fetch(source[4:], cache_dir())
         raw, suffix = path.read_bytes(), path.suffix.lower()
     else:
         raw, suffix = _read_bytes(source)

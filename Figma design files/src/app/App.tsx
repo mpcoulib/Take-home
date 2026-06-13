@@ -6,8 +6,10 @@ import { ComplaintsInput } from "./components/ComplaintsInput";
 import { InsuranceSelector, INSURANCE_OPTIONS } from "./components/InsuranceSelector";
 import { LocationSelector } from "./components/LocationSelector";
 import { PatientResultsView } from "./components/PatientResultsView";
+import { HospitalDetailView } from "./components/HospitalDetailView";
+import type { RankedHospital } from "./api";
 
-type Step = "landing" | "complaints" | "insurance" | "location" | "results";
+type Step = "landing" | "complaints" | "insurance" | "location" | "results" | "detail";
 
 const FLOW_STEPS: Exclude<Step, "landing" | "results">[] = [
   "complaints",
@@ -73,9 +75,11 @@ export default function App() {
   const [complaints, setComplaints] = useState("");
   const [insuranceId, setInsuranceId] = useState<string | null>(null);
   const [location, setLocation] = useState("");
+  const [selectedHospital, setSelectedHospital] = useState<RankedHospital | null>(null);
+  const [conditionDisplay, setConditionDisplay] = useState("");
 
   const flowStepIdx = FLOW_STEPS.indexOf(step as (typeof FLOW_STEPS)[number]);
-  const showProgress = step !== "landing" && step !== "results";
+  const showProgress = step !== "landing" && step !== "results" && step !== "detail";
 
   const canAdvance =
     (step === "complaints" && complaints.trim().length >= 10) ||
@@ -106,6 +110,14 @@ export default function App() {
     setComplaints("");
     setInsuranceId(null);
     setLocation("");
+    setSelectedHospital(null);
+    setConditionDisplay("");
+  };
+
+  const handleSelectHospital = (hospital: RankedHospital, condition: string) => {
+    setSelectedHospital(hospital);
+    setConditionDisplay(condition);
+    setStep("detail");
   };
 
   const insuranceName =

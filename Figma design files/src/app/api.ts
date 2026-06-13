@@ -79,6 +79,19 @@ export function rankHospitals(
   });
 }
 
+export interface HospitalDetail {
+  facility_id: string;
+  name: string;
+  city: string;
+  state: string;
+  type: string;
+  ownership: string;
+}
+
+export function fetchHospitalDetail(facilityId: string): Promise<HospitalDetail> {
+  return getJSON(`/api/hospitals/${facilityId}`);
+}
+
 // ---- symptom → backend condition mapping ----
 // Backend conditions: knee_surgery, hip_replacement, cardiac_surgery, stroke.
 

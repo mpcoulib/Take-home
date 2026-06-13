@@ -3,10 +3,10 @@ import { motion } from "motion/react";
 import { MessageSquareText, Sparkles } from "lucide-react";
 
 const EXAMPLE_PROMPTS = [
-  "I've had chest tightness and shortness of breath for two days...",
-  "Sharp knee pain after running, swelling when I walk...",
-  "Persistent cough with fever and fatigue for a week...",
-  "Dizziness and numbness on my left side since this morning...",
+  "Chest tightness and shortness of breath for two days — I want the best heart outcomes and don't mind traveling.",
+  "Sharp knee pain after running, swelling when I walk. I'd rather avoid long ER waits if possible.",
+  "Dizziness and numbness on my left side since this morning — I need somewhere close, fast.",
+  "Scheduling a hip replacement. Low complication rates matter most to me, comfort second.",
 ];
 
 interface ComplaintsInputProps {

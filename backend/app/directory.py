@@ -8,7 +8,6 @@ import pandas as pd
 
 from . import cms
 from .cms_measures import GENERAL_INFO_ID, normalize_facility_id
-from .loader import DATA_DIR
 
 _DIR_COLS = {
     "facility_id": "Facility ID",
@@ -21,7 +20,9 @@ _DIR_COLS = {
 
 
 def _load_general_info(refresh: bool = False) -> pd.DataFrame:
-    path, _ref = cms.fetch(GENERAL_INFO_ID, DATA_DIR, refresh=refresh)
+    from .runtime import cache_dir
+
+    path, _ref = cms.fetch(GENERAL_INFO_ID, cache_dir(), refresh=refresh)
     raw = pd.read_csv(path, dtype=str, low_memory=False)
     out = pd.DataFrame(
         {

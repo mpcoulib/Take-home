@@ -158,10 +158,13 @@ def _read_csv(path: Path) -> pd.DataFrame:
 
 def _fetch_all(refresh: bool = False) -> tuple[dict[str, Path], dict[str, str]]:
     """Download all measure CSVs; return paths + modified timestamps."""
+    from .runtime import cache_dir
+
     paths: dict[str, Path] = {}
     modified: dict[str, str] = {}
+    cdir = cache_dir()
     for key, dataset_id in DATASETS.items():
-        path, ref = cms.fetch(dataset_id, DATA_DIR, refresh=refresh)
+        path, ref = cms.fetch(dataset_id, cdir, refresh=refresh)
         paths[key] = path
         modified[key] = ref.modified
     return paths, modified
@@ -201,7 +204,10 @@ def is_stale() -> bool:
     if not meta.get("modified") or not has_cache:
         return True
     try:
-        _, current = _fetch_all(refresh=False)
+        if supabase_store.is_configured():
+            current = {key: cms.resolve(dataset_id).modified for key, dataset_id in DATASETS.items()}
+        else:
+            _, current = _fetch_all(refresh=False)
     except Exception:
         return True
     return current != meta["modified"]
@@ -250,19 +256,22 @@ def load(force_refresh: bool = False) -> pd.DataFrame:
     if not force_refresh and _MEASURES_CACHE is not None:
         return _MEASURES_CACHE
 
-    if force_refresh or _MEASURES_CACHE is None and is_stale():
-        from . import directory
-
-        df, modified = build(refresh=force_refresh)
-        if supabase_store.is_configured():
-            dir_df = directory.load(refresh=force_refresh)
-            supabase_store.sync_from_frames(df, dir_df, modified=modified)
-        _MEASURES_CACHE = df
-        return df
-
     if supabase_store.is_configured():
+        if force_refresh:
+            from . import directory
+
+            df, modified = build(refresh=True)
+            dir_df = directory.load(refresh=True)
+            supabase_store.sync_from_frames(df, dir_df, modified=modified)
+            _MEASURES_CACHE = df
+            return df
         _MEASURES_CACHE = supabase_store.load_measures()
         return _MEASURES_CACHE
+
+    if force_refresh or (_MEASURES_CACHE is None and is_stale()):
+        df, modified = build(refresh=force_refresh)
+        _MEASURES_CACHE = df
+        return df
 
     _MEASURES_CACHE = pd.read_parquet(STORE_PATH)
     return _MEASURES_CACHE
